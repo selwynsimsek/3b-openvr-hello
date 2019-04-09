@@ -48,20 +48,23 @@
                             )
         (setf (companion-window w) gw
               (main-window gw) w)
-        (glop::%swap-interval gw (if (vblank w) 1 0))
+        (glop:swap-interval gw (if (vblank w) 1 0))
         #+win32
         (setf (glop::win32-window-swap-interval gw) 0)
         (init w)
-        (loop
-          until (exit w)
-          while (with-simple-restart (Continue "Continue")
-                  (glop:dispatch-events (companion-window w)
-                                        :blocking nil :on-foo nil))
-          do (with-simple-restart (Continue "Continue")
-               (handle-input w))
-             (with-simple-restart (Continue "Continue")
-               (render-frame w)))
-        (shutdown w)))))
+        (with-simple-restart (vr-shutdown "Shutdown VR")
+          (loop
+            until (exit w)
+            while (with-simple-restart (Continue "Continue")
+                    (glop:dispatch-events (companion-window w)
+                                          :blocking nil :on-foo nil))
+            do (with-simple-restart (Continue "Continue")
+                 (handle-input w))
+               (with-simple-restart (Continue "Continue")
+                 (render-frame w))))
+        (format t "shutting down vr...~%")
+        (shutdown w)
+        (format t "shut down vr.~%")))))
 
 #++
 (main/glop :verbose t)

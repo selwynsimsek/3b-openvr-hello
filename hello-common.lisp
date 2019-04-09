@@ -729,7 +729,7 @@
                     render-model-matrix-location) o
     (when show-cubes
       (gl:use-program scene-program-id)
-      (gl:uniform-matrix scene-matrix-location 4
+       (gl:uniform-matrix scene-matrix-location 4
                          (vector (get-current-view-projection-matrix o eye))
                          nil)
       (gl:uniformi (scene-texture-location o) 0)
@@ -740,9 +740,9 @@
       (gl:draw-arrays :triangles 0 vertex-count)
       (gl:bind-vertex-array 0))
 
-    (let ((is-input-focus-captured-by-another-process
-            (vr::is-input-focus-captured-by-another-process)))
-      (unless is-input-focus-captured-by-another-process
+    (let ((is-input-available
+            (vr::is-input-available)))
+      (unless is-input-available
         ;; draw the controller axis lines
         (gl:use-program controller-transform-program-id)
         (gl:uniform-matrix controller-matrix-location 4
@@ -862,20 +862,24 @@
 (defmethod find-or-load-render-model ((o main) name)
   (when (gethash name (render-models o))
     (return-from find-or-load-render-model (gethash name (render-models o))))
+  (handler-case 
 
-  ;; load the model if we didn't find one
-  (let* ((model (loop when (vr::load-render-model-async name) return it
-                        do (sleep 1)))
-         (texture (loop when (vr::load-texture-async
-                              (getf model 'vr::diffuse-texture-id))
-                          return it
-                        do (sleep 1)))
-         (render-model (make-instance 'render-model
-                                      :name name
-                                      :model model :texture texture)))
-    (vr::free-render-model model)
-    (vr::free-texture texture)
-    (setf (gethash name (render-models o)) render-model)))
+      ;; load the model if we didn't find one
+      (let* ((model (loop when (vr::load-render-model-async name) return it
+                          do (sleep 1)))
+             (texture (loop when (vr::load-texture-async
+                                  (getf model 'vr::diffuse-texture-id))
+                            return it
+                            do (sleep 1)))
+             (render-model (make-instance 'render-model
+                                          :name name
+                                          :model model :texture texture)))
+        
+        (format t "model = ~a, texture = ~a ~%" model texture)
+        (vr::free-render-model model)
+        (vr::free-texture texture)
+        (setf (gethash name (render-models o)) render-model))
+    (t nil)))
 
 ;;; Create/destroy GL a Render Model for a single tracked device
 (defmethod setup-render-model-for-tracked-device ((o main) tracked-device-index)
